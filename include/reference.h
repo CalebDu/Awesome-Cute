@@ -15,10 +15,11 @@ cutlass_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
                    cutlass::HostTensor<Btype, BLayout> const &B, // col-major
                    cutlass::HostTensor<Ctype, CLayout> &C,
                    Ctype alpha = static_cast<Ctype>(1),
-                   Ctype beta = static_cast<Ctype>(0), int repeat = 1) {
+                   Ctype beta = static_cast<Ctype>(0), int repeat = 1000) {
   int m = A.extent().row();
   int n = B.extent().column();
   int k = A.extent().column();
+  float gflop = 2.0 * m * n * k / 1e9;
   using Gemm = cutlass::gemm::device::Gemm<Atype, ALayout, Btype, BLayout,
                                            Ctype, CLayout, Ctype,
                                            cutlass::arch::OpClassTensorOp>;
@@ -27,7 +28,17 @@ cutlass_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
   typename Gemm::Arguments args({m, n, k}, {A.device_data(), k},
                                 {B.device_data(), k}, {C.device_data(), n},
                                 {C.device_data(), n}, {alpha, beta});
+  GpuTimer timer;
+
   CUTLASS_CHECK(op(args));
+  timer.start();
+  for (int iter = 0; iter < repeat; iter++) {
+    op(args);
+  }
+  timer.stop();
+  float duration_ms = timer.elapsed_millis() / repeat;
+  float tflops = gflop / duration_ms;
+  printf("cutlass ref: %f tflops\n", tflops);
 }
 /*
 cublas golden compute
@@ -41,19 +52,32 @@ cublas_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
                   cutlass::HostTensor<Ctype, CLayout> &C,
                   ScalarType alpha = static_cast<ScalarType>(1),
                   ScalarType beta = static_cast<ScalarType>(0),
-                  int repeat = 1) {
+                  int repeat = 1000) {
   int m = A.extent().row();
   int n = B.extent().column();
   int k = A.extent().column();
   using Atype_ = typename UnderlyingType<Atype>::type;
   using Btype_ = typename UnderlyingType<Btype>::type;
   using Ctype_ = typename UnderlyingType<Ctype>::type;
+  float gflop = 2.0 * m * n * k / 1e9;
   cublasHandle_t handle;
   cublasCreate(&handle);
+  GpuTimer timer;
   cublasStatus_t ret =
       cublasHgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha,
                   (Btype_ *)B.device_data(), k, (Atype_ *)A.device_data(), k,
                   &beta, (Ctype_ *)C.device_data(), n);
+  timer.start();
+  for (int iter = 0; iter < repeat; iter++) {
+    cublasHgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha,
+                (Btype_ *)B.device_data(), k, (Atype_ *)A.device_data(), k,
+                &beta, (Ctype_ *)C.device_data(), n);
+  }
+  timer.stop();
+  float duration_ms = timer.elapsed_millis() / repeat;
+  float tflops = gflop / duration_ms;
+  printf("cublas ref: %f tflops\n", tflops);
+
   if (ret != CUBLAS_STATUS_SUCCESS) {
     std::cerr << "Got cublas error at : " << __LINE__ << std::endl;
   }

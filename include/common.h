@@ -17,23 +17,18 @@
 
 using namespace cute;
 
-template <typename T> inline auto make_A_cutlass_tensor(int m, int k) {
-  cutlass::HostTensor<T, cutlass::layout::RowMajor> A(
-      cutlass::MatrixCoord({m, k}));
-  return A;
-}
-
-template <typename T> inline auto make_B_cutlass_tensor(int n, int k) {
-  cutlass::HostTensor<T, cutlass::layout::ColumnMajor> B(
-      cutlass::MatrixCoord({k, n}));
-  return B;
-}
-
-template <typename T> inline auto make_C_cutlass_tensor(int m, int n) {
-  cutlass::HostTensor<T, cutlass::layout::RowMajor> C(
+template <typename T> inline auto make_cutlass_rowmajor_tensor(int m, int n) {
+  cutlass::HostTensor<T, cutlass::layout::RowMajor> tensor(
       cutlass::MatrixCoord({m, n}));
-  return C;
+  return tensor;
 }
+
+template <typename T> inline auto make_cutlass_colmajor_tensor(int m, int n) {
+  cutlass::HostTensor<T, cutlass::layout::ColumnMajor> tensor(
+      cutlass::MatrixCoord({m, n}));
+  return tensor;
+}
+
 
 template <class... CopyArgs, class PredTensor, class SrcEngine, class SrcLayout,
           class DstEngine, class DstLayout, class StripTuple, class ZfillTuple>
