@@ -53,7 +53,7 @@ cublas_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
                   cutlass::HostTensor<Ctype, CLayout> &C,
                   ScalarType alpha = static_cast<ScalarType>(1),
                   ScalarType beta = static_cast<ScalarType>(0),
-                  int repeat = 1000) {
+                  int repeat = 1000, cudaStream_t stream=nullptr) {
   int m = A.extent().row();
   int n = B.extent().column();
   int k = A.extent().column();
@@ -63,12 +63,14 @@ cublas_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
   float gflop = 2.0 * m * n * k / 1e9;
   cublasHandle_t handle;
   cublasCreate(&handle);
+  cublasSetStream(handle, stream);
   GpuTimer timer;
+  // warmup
   cublasStatus_t ret =
       cublasHgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha,
                   (Btype_ *)B.device_data(), k, (Atype_ *)A.device_data(), k,
                   &beta, (Ctype_ *)C.device_data(), n);
-  timer.start();
+  timer.start(stream);
   for (int iter = 0; iter < repeat; iter++) {
     cublasHgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha,
                 (Btype_ *)B.device_data(), k, (Atype_ *)A.device_data(), k,
