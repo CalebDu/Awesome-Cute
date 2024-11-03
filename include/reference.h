@@ -45,7 +45,8 @@ cublas golden compute
 */
 template <typename Atype, typename ALayout, typename Btype, typename BLayout,
           typename Ctype, typename CLayout,
-          typename ScalarType = typename UnderlyingType<Ctype>::type>
+          typename ScalarType = typename UnderlyingType<
+              Ctype>::type> // cvt cutlass::half_t to half
 inline void
 cublas_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
                   cutlass::HostTensor<Btype, BLayout> const &B, // col-major
@@ -76,7 +77,7 @@ cublas_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
   timer.stop();
   float duration_ms = timer.elapsed_millis() / repeat;
   float tflops = gflop / duration_ms;
-  printf("cublas ref: %f tflops\n", tflops);
+  printf("cublas ref: %f tflops, %f ms latency\n", tflops, duration_ms);
 
   if (ret != CUBLAS_STATUS_SUCCESS) {
     std::cerr << "Got cublas error at : " << __LINE__ << std::endl;
@@ -152,10 +153,23 @@ void cpu_cosine_similarity(T *x, T *y, size_t n, float threshold = 0.999) {
     x_2 += xi * xi;
     y_2 += yi * yi;
   }
-  float cos_similarity = xy / (std::sqrt(x_2) * std::sqrt(y_2));
-  if (cos_similarity < threshold) {
-    printf_fail("check fail, cos_similarity = %f\n", cos_similarity);
-  } else {
+  // (A dot B) / (mod(A) * mod(B))
+  float cos_similarity = xy / (std::sqrt(x_2 + 1e-5) * std::sqrt(y_2 + 1e-5));
+  if (cos_similarity >= threshold && cos_similarity <= 1.0f) {
     printf_pass("check ok, cos_similarity = %f\n", cos_similarity);
+  } else {
+    printf_fail("check fail, cos_similarity = %f\n", cos_similarity);
   }
+}
+
+template <typename Kernel>
+inline float launch_with_timer(Kernel kernel, int repeat = 1000,
+                               cudaStream_t stream = 0) {
+  GpuTimer timer;
+  timer.start(stream);
+  for (int iter = 0; iter < repeat; iter++) {
+    kernel();
+  }
+  timer.stop();
+  return timer.elapsed_millis() / repeat;
 }

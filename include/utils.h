@@ -2,7 +2,7 @@
 
 #include "cutlass/numeric_types.h"
 #include <cstdarg>
-#include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 
 void printf_fail(const char *fmt, ...) {
@@ -39,3 +39,9 @@ template <typename T> struct UnderlyingType {
 template <> struct UnderlyingType<cutlass::half_t> {
   using type = half;
 };
+
+inline
+float compute_tflops(float flop, float ms) {
+  float tflops = flop * 1e-9 / ms;
+  return tflops;
+}

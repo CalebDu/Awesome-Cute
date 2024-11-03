@@ -12,9 +12,13 @@ set(CMAKE_CUDA_STANDARD_REQUIRED True)
 set(CMAKE_CUDA_ARCHITECTURES 80 86 89)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/${PLATFORM_ABI})
+set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr -O2")
+# set(CUDA_SEPARABLE_COMPILATION ON)
+find_package(CUDA REQUIRED)
 
 include_directories(cutlass/include)
 include_directories(cutlass/tools/util/include)
 include_directories(cutlass/examples/common)
 include_directories(include)
+
 add_subdirectory(gemm)
