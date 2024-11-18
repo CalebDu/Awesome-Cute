@@ -14,6 +14,7 @@
 
 #define ceil_div(x, y) ((x) + (y) - 1) / (y)
 #define round_up(x, y) ceil_div(x, y) * (y)
+#define DEVICE __device__ __forceinline__
 
 using namespace cute;
 
@@ -76,4 +77,22 @@ copy_strip_zfill(Copy_Atom<CopyArgs...> const &copy, PredTensor const &pred,
           src_v(_, _), dst_v(_, _));
     }
   }
+}
+
+int get_device_sm() {
+  int current_device;
+  int device_sms;
+  CUDA_CHECK(cudaGetDevice(&current_device));
+  CUDA_CHECK(cudaDeviceGetAttribute(&device_sms, cudaDevAttrMultiProcessorCount,
+                                    current_device));
+  return device_sms;
+}
+
+template <typename Kernel>
+int get_sm_occupancy(Kernel kernel, int block_size, int smem_size) {
+  int sm_occupancy;
+  CUDA_CHECK(cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
+      &sm_occupancy, kernel, block_size, smem_size,
+      cudaOccupancyDisableCachingOverride));
+  return sm_occupancy;
 }

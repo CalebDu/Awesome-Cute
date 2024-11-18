@@ -53,7 +53,7 @@ cublas_gemmTN_ref(cutlass::HostTensor<Atype, ALayout> const &A, // row-major
                   cutlass::HostTensor<Ctype, CLayout> &C,
                   ScalarType alpha = static_cast<ScalarType>(1),
                   ScalarType beta = static_cast<ScalarType>(0),
-                  int repeat = 1000, cudaStream_t stream=nullptr) {
+                  int repeat = 1000, cudaStream_t stream = nullptr) {
   int m = A.extent().row();
   int n = B.extent().column();
   int k = A.extent().column();
@@ -145,9 +145,9 @@ void gpu_compare(const T *x, const T *y, size_t n, float threshold = 1e-1) {
 template <typename T>
 void cpu_cosine_similarity(T *x, T *y, size_t n, float threshold = 0.999) {
 
-  float xy = 0.0f;
-  float x_2 = 0.0f;
-  float y_2 = 0.0f;
+  double xy = 0.0f;
+  double x_2 = 0.0f;
+  double y_2 = 0.0f;
   for (size_t i = 0; i < n; i++) {
     auto xi = static_cast<float>(x[i]);
     auto yi = static_cast<float>(y[i]);

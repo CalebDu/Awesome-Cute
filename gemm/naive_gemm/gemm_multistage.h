@@ -218,6 +218,7 @@ gemmTN_multistage(void *__restrict__ Aptr, void *__restrict__ Bptr,
   auto thr_s2g_copy_c = s2g_copy_c.get_slice(tidx);
   auto s2g_tCsC = thr_s2g_copy_c.partition_S(sC);
   auto s2g_tCgC = thr_s2g_copy_c.partition_D(gC);
+  auto s2g_tCgC_pred = thr_s2g_copy_c.partition_D(gC_pred);
 
   const int k_main_loop_cnt = size<2>(gA);
   const int k_inner_loop_cnt = size<2>(tArA);
@@ -399,6 +400,7 @@ gemmTN_multistage(void *__restrict__ Aptr, void *__restrict__ Bptr,
 
   // epilog r2s/s2g pipeline
   auto s2g_tCgC_view = group_modes<1, 3>(s2g_tCgC);
+  auto s2g_tCgC_pred_view = group_modes<1, 3>(s2g_tCgC_pred);
   auto r2s_tCrC_view = group_modes<1, 3>(r2s_tCrC_copy);
 
   const int epilog_cnt = size<1>(r2s_tCrC_view);
@@ -420,8 +422,19 @@ gemmTN_multistage(void *__restrict__ Aptr, void *__restrict__ Bptr,
     for (int epilog_stage_idx = 0; epilog_stage_idx < epilog_stage;
          epilog_stage_idx++) {
       // s2g
-      copy(s2g_copy_c, s2g_tCsC(_, 0, 0, epilog_stage_idx),
-           s2g_tCgC_view(_, epilog_idx + epilog_stage_idx));
+      if constexpr (kBound_Check) {
+        copy_if(
+            s2g_copy_c,
+            [&](auto... coords) {
+              auto pred = s2g_tCgC_pred_view(_, epilog_idx + epilog_stage_idx);
+              return elem_less(pred(_0{}, coords...), shape(C));
+            },
+            s2g_tCsC(_, 0, 0, epilog_stage_idx),
+            s2g_tCgC_view(_, epilog_idx + epilog_stage_idx));
+      } else {
+        copy(s2g_copy_c, s2g_tCsC(_, 0, 0, epilog_stage_idx),
+             s2g_tCgC_view(_, epilog_idx + epilog_stage_idx));
+      }
     }
     __syncthreads();
   }

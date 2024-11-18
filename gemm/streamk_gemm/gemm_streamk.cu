@@ -1,6 +1,6 @@
 #include "common.h"
 #include "cute/tensor.hpp"
-#include "gemm_multistage.h"
+#include "gemm_streamk.h"
 #include "reference.h"
 
 using type = cutlass::half_t;
@@ -33,6 +33,7 @@ int main(int argc, const char *argv[]) {
                                                     2);
   cutlass::reference::host::TensorFillRandomUniform(B_tensor.host_view(), 0, -2,
                                                     2);
+  // fill all 1 for debug
   // cutlass::reference::host::TensorFill(A_tensor.host_view(), type(1));
   // cutlass::reference::host::TensorFill(B_tensor.host_view(), type(1));
   A_tensor.sync_device();
@@ -40,17 +41,31 @@ int main(int argc, const char *argv[]) {
 
   cublas_gemmTN_ref(A_tensor, B_tensor, C_ref_tensor, alpha.to_half(),
                     beta.to_half(), repeat, stream);
-  C_ref_tensor.sync_host();
-  auto run = [&](auto gemm_traits, std::string kernel_name = "kernel") {
+  auto run = [&](auto gemm_traits,
+                 SK_DP_Block_Strategy strategy =
+                     SK_DP_Block_Strategy::sk1tile_dp,
+                 std::string kernel_name = "kernel") {
     using Traits = decltype(gemm_traits);
-    dim3 cta(size(typename Traits::MMA{}));
-    dim3 grid(ceil_div(m, Traits::kCTAM), ceil_div(n, Traits::kCTAN));
+    using Arguments = typename Traits::Arguments;
     constexpr int smem_size = Traits::kAllSmemSize;
-    config_smem(gemmTN_multistage<Traits>, smem_size);
+    constexpr int block_size = Traits::kThread;
+    config_smem(gemmTN_streamk_dp<Traits>, smem_size);
+    int device_sm = get_device_sm();
+    int sm_occupancy =
+        get_sm_occupancy(gemmTN_streamk_dp<Traits>, block_size, smem_size);
+    printf("launch kernel: %s:\n", kernel_name.c_str());
+    printf("sm occupancy:%d, shared mem size: %.1fKiB\n", sm_occupancy,
+           smem_size / 1e3);
+    Arguments args(make_shape(m, n, k), A_tensor.device_data(),
+                   B_tensor.device_data(), C_tensor.device_data(), sm_occupancy,
+                   device_sm, device_sm, strategy);
+    args.init_workspace(stream); // init workspace for partial sum
+
+    dim3 cta(block_size);
+    dim3 grid(args.get_grid_dims());
+
     auto kernel = [&] {
-      gemmTN_multistage<Traits><<<grid, cta, smem_size, stream>>>(
-          A_tensor.device_data(), B_tensor.device_data(),
-          C_tensor.device_data(), m, n, k);
+      gemmTN_streamk_dp<Traits><<<grid, cta, smem_size, stream>>>(args);
     };
     for (int i = 0; i < warmup; i++) {
       kernel();
@@ -58,35 +73,27 @@ int main(int argc, const char *argv[]) {
     auto duration_ms = launch_with_timer(kernel, repeat, stream);
     float flop = 2.0 * m * n * k;
     auto tflops = compute_tflops(flop, duration_ms);
-    printf("%s: %f tflops, %f ms latency\n", kernel_name.c_str(), tflops,
-           duration_ms);
-    cudaDeviceSynchronize();
+    printf("%f tflops, %f ms latency\n", tflops, duration_ms);
+    args.free_workspace();
     C_tensor.sync_host();
-
+    C_ref_tensor.sync_host();
     cpu_cosine_similarity(C_tensor.host_data(), C_ref_tensor.host_data(),
                           C_ref_tensor.capacity());
   };
-  run(GemmTraits<decltype(make_shape(_128{}, _128{}, _32{})), 2>{},
-      "gemm_cta_128*128*32_stage2_no_check");
   run(GemmTraits<decltype(make_shape(_128{}, _128{}, _32{})), 3>{},
-      "gemm_cta_128*128*32_stage3_no_check");
-  run(GemmTraits<decltype(make_shape(_128{}, _256{}, _32{})), 2>{},
-      "gemm_cta_128*256*32_stage2_no_check");
-  run(GemmTraits<decltype(make_shape(_128{}, _256{}, _32{})), 3>{},
-      "gemm_cta_128*256*32_stage3_no_check");
-  run(GemmTraits<decltype(make_shape(_64{}, _64{}, _32{})), 4>{},
-      "gemm_cta_64*64*32_stage4_no_check");
+      SK_DP_Block_Strategy::sk1tile_dp,
+      "gemm_streamk_1sk_dp_cta_128*128*32_stage3");
+  run(GemmTraits<decltype(make_shape(_128{}, _128{}, _32{})), 3>{},
+      SK_DP_Block_Strategy::sk2tile_dp,
+      "gemm_streamk_2sk_dp_cta_128*128*32_stage3");
 
-  run(GemmTraits<decltype(make_shape(_128{}, _128{}, _32{})), 2, true>{},
-      "gemm_cta_128*128*32_stage2_check_bound");
-  run(GemmTraits<decltype(make_shape(_128{}, _128{}, _32{})), 3, true>{},
-      "gemm_cta_128*128*32_stage3_check_bound");
-  run(GemmTraits<decltype(make_shape(_128{}, _256{}, _32{})), 2, true>{},
-      "gemm_cta_128*256*32_stage2_check_bound");
-  run(GemmTraits<decltype(make_shape(_128{}, _256{}, _32{})), 3, true>{},
-      "gemm_cta_128*256*32_stage3_check_bound");
-  run(GemmTraits<decltype(make_shape(_64{}, _64{}, _32{})), 4, true>{},
-      "gemm_cta_64*64*32_stage4_check_bound");
+  run(GemmTraits<decltype(make_shape(_128{}, _256{}, _32{})), 3>{},
+      SK_DP_Block_Strategy::sk1tile_dp,
+      "gemm_streamk_1sk_dp_cta_128*256*32_stage3");
+  run(GemmTraits<decltype(make_shape(_128{}, _256{}, _32{})), 3>{},
+      SK_DP_Block_Strategy::sk2tile_dp,
+      "gemm_streamk_2sk_dp_cta_128*256*32_stage3");
+
   cudaStreamDestroy(stream);
 
   // auto A_cute = make_tensor(make_gmem_ptr<type>(A_tensor.host_data()),
