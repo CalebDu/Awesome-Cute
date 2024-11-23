@@ -7,6 +7,7 @@ This repo aims to implement some basic operators in deep learning by Cute from s
 ## Support Matrix
 - gemm_multstage
 - gemm_streamk
+- gemm_naive_warp_specialization
 - more implementation to update
 
 ## Build project

@@ -388,7 +388,7 @@ gemmTN_multistage(void *__restrict__ Aptr, void *__restrict__ Bptr,
           }
         }
         g2s_g_read_cnt++;
-        g2s_s_write_cnt = s2r_s_read_cnt;
+        g2s_s_write_cnt = (g2s_s_write_cnt + 1) % kStage;
         next_s2r_s_read_cnt = (s2r_s_read_cnt + 1) % kStage;
         cp_async_fence();
       }
