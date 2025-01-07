@@ -1,3 +1,4 @@
 add_subdirectory(naive_gemm)
 add_subdirectory(streamk_gemm)
 add_subdirectory(warp_speicalization_gemm)
+add_subdirectory(marlin_gemm)

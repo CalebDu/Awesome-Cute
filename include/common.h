@@ -15,6 +15,10 @@
 #define ceil_div(x, y) ((x) + (y) - 1) / (y)
 #define round_up(x, y) ceil_div(x, y) * (y)
 #define DEVICE __device__ __forceinline__
+#define PRINT(x)                                                               \
+  print(#x ":\n");                                                             \
+  print(x);                                                                    \
+  print("\n")
 
 using namespace cute;
 
