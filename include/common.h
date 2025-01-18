@@ -14,11 +14,16 @@
 
 #define ceil_div(x, y) ((x) + (y) - 1) / (y)
 #define round_up(x, y) ceil_div(x, y) * (y)
+#define round_down(x, y) ((x) / (y)) * (y)
 #define DEVICE __device__ __forceinline__
 #define PRINT(x)                                                               \
   print(#x ":\n");                                                             \
   print(x);                                                                    \
-  print("\n")
+  print("\n");
+#define PRINT_TENSOR(x)                                                        \
+  print(#x ":\n");                                                             \
+  print_tensor(x);                                                             \
+  print("\n");
 
 using namespace cute;
 
@@ -34,14 +39,19 @@ template <typename T> inline auto make_cutlass_colmajor_tensor(int m, int n) {
   return tensor;
 }
 
+inline int get_max_smem_size() {
+  int max_shared_mem;
+  cudaDeviceGetAttribute(&max_shared_mem,
+                         cudaDevAttrMaxSharedMemoryPerBlockOptin, 0);
+  return max_shared_mem;
+}
+
 template <typename Kernel> void config_smem(Kernel kernel, int smem_size) {
   if (smem_size >= 32 * 1024) {
     if (cudaFuncSetAttribute(kernel,
                              cudaFuncAttributeMaxDynamicSharedMemorySize,
                              smem_size) != cudaSuccess) {
-      int max_shared_mem;
-      cudaDeviceGetAttribute(&max_shared_mem,
-                             cudaDevAttrMaxSharedMemoryPerBlockOptin, 0);
+      int max_shared_mem = get_max_smem_size();
       cudaError_t err = cudaGetLastError();
       std::cerr << "Set kernel attribute failed: " << cudaGetErrorString(err)
                 << std::endl;

@@ -8,6 +8,7 @@ This repo aims to implement some basic operators in deep learning by Cute from s
 - gemm_multstage
 - gemm_streamk
 - gemm_naive_warp_specialization
+- gemm_marlin_w4a16
 - more implementation to update
 
 ## Build project

@@ -7,6 +7,7 @@ try:
 except ImportError:
   print("ninja marlin_lib first")
 
+# torch.set_printoptions(threshold=torch.inf)
 def mul(A, B, C, s, workspace, thread_k=-1, thread_n=-1, sms=-1, max_par=16, cute_version=True):
     """Marlin FP16xINT4 multiply; can be used within `torch.compile`.
     @A: `torch.half` input matrix of shape `(m, k)` in standard row-major layout
@@ -120,6 +121,7 @@ class Layer(nn.Module):
         w = w.reshape((self.k // tile, self.n * tile))
         res = w
         res = res.reshape((-1, _perm.numel()))[:, _perm].reshape(res.shape)
+        # print(f"B:\n{res}")
         q = np.zeros((res.shape[0], res.shape[1] // 8), dtype=np.uint32)
         res = res.cpu().numpy().astype(np.uint32)
         for i in range(8):

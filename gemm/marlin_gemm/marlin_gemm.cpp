@@ -32,13 +32,13 @@ void mul(const torch::Tensor &A, const torch::Tensor &B, torch::Tensor &C,
   int dev = A.get_device();
   int err;
   if (cute_version) {
-    printf("cute version\n");
+    // printf("cute version\n");
     err = marlin_cute(A.data_ptr(), B.data_ptr(), C.data_ptr(), s.data_ptr(),
                       prob_m, prob_n, prob_k, workspace.data_ptr(), groupsize,
                       dev, at::cuda::getCurrentCUDAStream(dev), thread_k,
                       thread_n, sms, max_par);
   } else {
-    printf("official version\n");
+    // printf("official version\n");
     err = marlin_official(
         A.data_ptr(), B.data_ptr(), C.data_ptr(), s.data_ptr(), prob_m, prob_n,
         prob_k, workspace.data_ptr(), groupsize, dev,

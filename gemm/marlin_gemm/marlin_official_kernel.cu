@@ -452,6 +452,40 @@ __global__ void Marlin(
       FragB frag_b1 = dequant(b_quant_shift);
       if (group_blocks != -1)
         scale(frag_b1, frag_s[k % 2][j], 1);
+      // __syncthreads();
+      // if (threadIdx.x == 28 && blockIdx.x == 0) {
+      //   printf("gemm %d nidx %d\n", gemm_cnt, j);
+
+      //   printf("scale:\n");
+      //   printf("%.5f\n", static_cast<float>(reinterpret_cast<half *>(
+      //                        &frag_s[k % 2][j][0])[0]));
+      //   printf("%.5f\n", static_cast<float>(reinterpret_cast<half *>(
+      //                        &frag_s[k % 2][j][0])[1]));
+      //   printf("frag a:\n");
+      //   for (int i = 0; i < 8; i++) {
+      //     printf("%.5f ", static_cast<float>(
+      //                         reinterpret_cast<half *>(&frag_a[k %
+      //                         2][0])[i]));
+      //   }
+      //   printf("\n");
+      //   printf("frag b:\n");
+      //   printf("%d\n", b_quant);
+      //   // printf("dequant frag b 00 :\n");
+      //   // for (int i = 0; i < 4; i++) {
+      //   //   printf("%.5f ",
+      //   //          static_cast<float>(reinterpret_cast<half
+      //   *>(&frag_b0)[i]));
+      //   // }
+      //   // printf("\n");
+      //   // printf("dequant frag b 01 :\n");
+      //   // for (int i = 0; i < 4; i++) {
+      //   //   printf("%.5f ",
+      //   //          static_cast<float>(reinterpret_cast<half
+      //   *>(&frag_b1)[i]));
+      //   // }
+      //   // printf("\n");
+      // }
+      // __syncthreads();
       #pragma unroll
       for (int i = 0; i < thread_m_blocks; i++) {
         mma(frag_a[k % 2][i], frag_b0, frag_c[i][j][0]);
@@ -654,6 +688,14 @@ __global__ void Marlin(
     // Process results and, if necessary, proceed to the next column slice. While this pattern may not be the most
     // readable, other ways of writing the loop seemed to noticeably worse performance after compliation.
     if (slice_iters == 0) {
+      // if (threadIdx.x == 0 && blockIdx.x == 0) {
+      //   printf("main loop frag_c tidx %d:\n", threadIdx.x);
+      //   for (int i = 0; i < thread_m_blocks * 2 * 4 * 4; i++) {
+      //     printf("%.5f ", reinterpret_cast<float *>(frag_c)[i]);
+      //   }
+      //   printf("\n");
+      // }
+      // __syncthreads();
       cp_async_wait<0>();
       bool last = slice_idx == slice_count - 1;
       // For per-column scales, we only fetch them here in the final step before write-out
@@ -663,6 +705,15 @@ __global__ void Marlin(
         cp_async_fence();
       }
       thread_block_reduce();
+      // __syncthreads();
+      // if (threadIdx.x == 0 && blockIdx.x == 0) {
+      //   printf("cta reduce frag_c:\n");
+      //   for (int i = 0; i < thread_m_blocks * 2 * 4 * 4; i++) {
+      //     printf("%.5f ", reinterpret_cast<float *>(frag_c)[i]);
+      //   }
+      //   printf("\n");
+      // }
+      // __syncthreads();
       if (group_blocks == -1 && last) {
         cp_async_wait<0>();
         __syncthreads();

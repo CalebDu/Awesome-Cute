@@ -7,6 +7,7 @@ This folder is Gemm implementation.
 ../bin/gemm_mutlistage m n k
 ../bin/gemm_streamk m n k
 ../bin/gemm_ws m n k
+python ./marlin_gemm/marlin_profiling.py
 ```
 
 ## Performance
@@ -34,3 +35,24 @@ experiment performance in rtx 4090, cuda_12.1.r12.1.
 |mnk(8192,8192,8192)|252tflops/4.353ms|268tflops/4.101ms|211tflops/5.206ms|247tflops/4.436ms|255tflops/4.304ms|
 
 ---
+
+### Marlin W4A16 Gemm
+|   |   |   |
+|---|---|---|
+|shape(m_n_k_group)|marlin_cute|marlin_official|
+|7B_1_12288_4096_-1|15.057 us|14.629 us|
+|7B_16_12288_4096_-1|15.941 us|15.291 us|
+|7B_1_12288_4096_128|15.744 us|14.921 us|
+|7B_16_12288_4096_128|16.550 us|15.637 us|
+|7B_1_4096_4096_-1|8.359 us|8.189 us|
+|7B_16_4096_4096_-1|9.035 us|8.936 us|
+|7B_1_4096_4096_128|8.714 us|8.431 us|
+|7B_16_4096_4096_128|9.393 us|9.113 us|
+|7B_1_21504_4096_-1|23.983 us|23.464 us|
+|7B_16_21504_4096_-1|24.858 us|24.171 us|
+|7B_1_21504_4096_128|25.268 us|24.068 us|
+|7B_16_21504_4096_128|26.104 us|24.861 us|
+|7B_1_4096_10752_-1|14.108 us|13.845 us|
+|7B_16_4096_10752_-1|14.916 us|14.617 us|
+|7B_1_4096_10752_128|14.872 us|14.172 us|
+|7B_16_4096_10752_128|15.714 us|15.224 us|
