@@ -6,8 +6,9 @@ This folder is Gemm implementation.
 ``` shell
 ../bin/gemm_mutlistage m n k
 ../bin/gemm_streamk m n k
-../bin/gemm_ws m n k
+../bin/gemm_ws_sm8x m n k
 python ./marlin_gemm/marlin_profiling.py
+./bin/gemm_ws_sm90a m n k swizzle
 ```
 
 ## Performance
@@ -56,3 +57,17 @@ experiment performance in rtx 4090, cuda_12.1.r12.1.
 |7B_16_4096_10752_-1|14.916 us|14.617 us|
 |7B_1_4096_10752_128|14.872 us|14.172 us|
 |7B_16_4096_10752_128|15.714 us|15.224 us|
+
+### Warp Spcialization Gemm for Hopper
+experiment performance in H100 PCIE 80GB, cuda_12.8.r12.8
+
+
+|                      | 2048x2048x2048                                      | 4096x4095x4096                                      | 8192x8192x8192                                       | 备注                                                                         |
+|----------------------|-----------------------------------------------------|-----------------------------------------------------|------------------------------------------------------|------------------------------------------------------------------------------|
+| cublas gemm          | ncu: 49788cycle      stream: 626tflops  0.027419 ms | ncu: 282381cycle      stream:775tflops 0.177158 ms  | ncu: 2270766cycle      stream:716tflops 1.533956 ms  | stream   测出cublas的latency更少算力更高，但是ncu 显示的cublas 的cycle数更多 |
+| cutlass_ws gemm      | ncu: 51681cycle      stream: 521tflops 0.032957 ms  | ncu: 325350cycle      stream: 596tflops 0.230587 ms | ncu: 2825726cycle      stream:516tflops 1.815191 ms  | cutlass ws 还是采用data   parallel的策略而非persistent                       |
+| cutlass_ws_coop gemm | ncu: 47620cycle      stream:566tflops  0.030308 ms  | ncu: 293475cycle      stream:679tflops 0.202164 ms  | ncu: 2291953cycle      stream:598tflops 1.837878 ms  |                                                                              |
+| cutlass_ws_pipo gemm | ncu: 46299cycle      stream:564tflops 0.030417 ms   | ncu: 279205cycle      stream:695tflops 0.197744 ms  | ncu: 2237864cycle      stream:608tflops 1.805988 ms  |                                                                              |
+| my_ws gemm           | ncu: 44868cycle      stream: 628tflops 0.027348 ms  | ncu: 291775cycle      stream: 694tflops 0.197875 ms | ncu: 2195027cycle      stream:605tflops 1.815191 ms  |                                                                              |
+| my_ws_coop gemm      | ncu: 43795cycle      stream: 629tflops 0.027309 ms  | ncu: 287676cycle      stream:683tflops 0.201130 ms  | ncu: 2173536cycle      stream: 626tflops 1.753922 ms |                                                                              |
+| my_ws_pipo gemm      | ncu: 42447cycle      stream: 629tflops  0.026972 ms | ncu: 275501cycle      stream: 710tflops 0.193317 ms | ncu: 2129913cycle      stream:638tflops 1.722661 ms  |                                                                              |

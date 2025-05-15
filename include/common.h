@@ -12,7 +12,6 @@
 // #include "cutlass/util/reference/host/tensor_compare.h"
 // #include "cutlass/util/reference/host/tensor_copy.h"
 
-#define ceil_div(x, y) ((x) + (y) - 1) / (y)
 #define round_up(x, y) ceil_div(x, y) * (y)
 #define round_down(x, y) ((x) / (y)) * (y)
 #define DEVICE __device__ __forceinline__

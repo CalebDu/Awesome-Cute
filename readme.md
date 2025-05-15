@@ -9,6 +9,7 @@ This repo aims to implement some basic operators in deep learning by Cute from s
 - gemm_streamk
 - gemm_naive_warp_specialization
 - gemm_marlin_w4a16
+- gemm warp specialization for Hopper GPU
 - more implementation to update
 
 ## Build project
